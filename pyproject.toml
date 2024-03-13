@@ -28,6 +28,9 @@ flask-cors = "^4.0.0"
 [tool.poetry.group.dev.dependencies]
 setuptools = "^69.0.3"
 
+[tool.poetry.scripts]
+freeselcall = 'freeselcall:__main__.main'
+
 [build-system]
 requires = ["poetry-core","setuptools","cffi"]
 build-backend = "poetry.core.masonry.api"
