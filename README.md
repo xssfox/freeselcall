@@ -1,4 +1,15 @@
+Freeselcall
+==
+[![scratchanitch.dev badge](https://img.shields.io/badge/scratchanitch-dev-FFC4B5)](https://scratchanitch.dev)
+
 Codan 4 digit Selcall encoder and decoder
+
+> [!IMPORTANT]  
+> This project is to scratch an itch. It works on a very limited set of Codan HF Selcall. It likely won't work with other vendors or even other types of Codan Selcall. If you want to have support for these, you'll have to work it out - though I will accept well crafted pull requests.
+> 
+> Code in this repo is hacky and barely functional. There are likely performance issues and many edge cases. Feel free to log issues for these, however I won't be able to address all of them. Nor will I be timely.
+>
+> I made this because I couldn't find anything else that did this. I did not want to make this.
 
 ## Features
  - Codan HF Selcall (4 digits)
