@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link href="bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
+
+</head>
+
+<body>
+    <header>
+
+    </header>
+
+    <!-- Begin page content -->
+    <main role="main" class="container gap-4 d-grid ">
+        <div class="row">
+            <h1 class="mt-5">Freeselcall <span class="badge rounded-pill bg-secondary" id="status">Disconnected</span></h1>
+            <p>Selcall decoder test interface</p>
+            <p><b>My ID: </b><span id="my-id"></span></p>
+        </div>
+        <div class="row">
+            <h2>TX</h2>
+            <form action="javascript:tx_form()">
+                <div class="form-group">
+                    <label for="target">Target</label>
+                    <input class="form-control" id="target" aria-describedby="targetHelp"
+                        placeholder="Enter 4 digit ID" maxlength="4">
+                    <small id="targetHelp" class="form-text text-muted">Selcall 4 digit radio ID.</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Call</button>
+            </form>
+        </div>
+        <div class="row">
+            <h2>RX Log</h2>
+            <p>This log only shows received Selcalls while the page has been open and active</p>
+            <div id="rx_log">
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <span class="text-muted"></span>
+        </div>
+    </footer>
+    <script src="bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script src="socket.io.min.js"></script>
+    <script>
+        var socket = io.connect("/freeselcall");
+
+        function log_selcall(data) {
+            var alert_log = document.createElement("div")
+            alert_log.classList.add("alert")
+            alert_log.classList.add("alert-info")
+            alert_log.role = "alert"
+            alert_log.innerText = new Date().toISOString() + " Selcall from " + data.source[0] + " to " + data.target[0] + " [" + data.snr +  "db]"
+            document.getElementById("rx_log").appendChild(alert_log)
+        }
+
+        function log_preamble(data) {
+            var alert_log = document.createElement("div")
+            alert_log.classList.add("alert")
+            alert_log.classList.add("alert-light")
+            alert_log.role = "alert"
+            alert_log.innerText = new Date().toISOString() + " Preamble detected" + " [" + data.snr +  "db]"
+            document.getElementById("rx_log").appendChild(alert_log)
+        }
+        
+        function info(data){
+            document.getElementById("my-id").innerText = data.id
+        }
+
+        socket.on('error', console.error.bind(console));
+        socket.on('selcall', log_selcall);
+        socket.on('preamble', log_preamble);
+
+        socket.on("info", info)
+
+        socket.on("connect", () => {
+            socket.emit("info",{})
+            document.getElementById("status").innerText = "Connected"
+            document.getElementById("status").className = "badge rounded-pill bg-success"
+        });
+
+        socket.on("connect_error", () => {
+            document.getElementById("status").innerText = "Error"
+            document.getElementById("status").className = "badge rounded-pill bg-danger"
+        });
+
+        socket.on("disconnect", () => {
+            document.getElementById("status").innerText = "Disconnected"
+            document.getElementById("status").className = "badge rounded-pill bg-danger"
+        });
+
+        function addMessage(message) {
+            var text = document.createTextNode(message),
+                el = document.createElement('li'),
+                messages = document.getElementById('messages');
+
+            el.appendChild(text);
+            messages.appendChild(el);
+        }
+
+        function tx_form() {
+            var target = document.getElementById("target").value
+            socket.emit("selcall", target)
+        }
+        
+    </script>
+</body>
+
+</html>
