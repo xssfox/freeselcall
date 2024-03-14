@@ -30,6 +30,42 @@ Codan 4 digit Selcall encoder and decoder
  - libcodec2
  - c build tools
 
+## Running with Docker
+
+Example:
+```
+docker run -p 5001:5001 --name freeselcall --rm --device /dev/snd -it ghcr.io/xssfox/freeselcall:latest --help
+```
+
+## Install with pip
+```
+# install required system packages
+sudo apt-get update
+sudo apt install git build-essential cmake portaudio19-dev python3 python3-dev libhamlib-utils
+
+sudo apt install pipx
+pipx ensurepath
+
+# make sure the PATH is set correctly
+source ~/.profile
+
+# install codec2 (need the latest fsk modem)
+git clone https://github.com/drowe67/codec2.git
+cd codec2
+mkdir build_linux
+cd build_linux
+cmake ..
+make
+sudo make install
+sudo ldconfig
+cd ../..
+
+CFLAGS="-I$(realpath $(pwd)/../codec2/src)" pipx install freeselcall
+
+freeselcall --help
+```
+
+
 ## Install
 
 Instructions for a raspberrypi. Requires bookworm or python 3.11 to be installed. UNTESTED
@@ -70,6 +106,8 @@ python3 -m freeselcall
 ```
 
 If libcodec2 is installed somewhere else you can use `CFLAGS="-I/path/to/headers/ -L/path/to/lib/"` during to ensure that we can find libcodec2 during the install
+
+
 
 ## Running
 ```
