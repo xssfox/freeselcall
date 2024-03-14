@@ -54,7 +54,7 @@ cmake ..
 make
 sudo make install
 sudo ldconfig
-
+cd ../..
 
 pipx install poetry
 
@@ -62,7 +62,10 @@ pipx install poetry
 # install freeselcall
 git clone https://github.com/xssfox/freeselcall.git
 cd freeselcall
-poetry install
+
+# the headers installed by libcodec2 make install don't include kiss_fftr.h required by the modem
+CFLAGS="-I$(realpath $(pwd)/../codec2/src)" poetry install
+poetry shell
 python3 -m freeselcall
 ```
 
