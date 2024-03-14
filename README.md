@@ -10,6 +10,8 @@ Codan 4 digit Selcall encoder and decoder
 > Code in this repo is hacky and barely functional. There are likely performance issues and many edge cases. Feel free to log issues for these, however I won't be able to address all of them. Nor will I be timely.
 >
 > I made this because I couldn't find anything else that did this. I did not want to make this.
+> 
+> This is not a place of honor
 
 ## Features
  - Codan HF Selcall (4 digits)
@@ -83,8 +85,6 @@ freeselcall --list-audio-devices
 
 freeselcall --output-device 0 --input-device 0 --log-level DEBUG # it's useful to have debug turned on when first testing
 ```
-
-The connect your favorite kiss tools up to the TNC over TCP port 8001 or PTS interface if enabled
 
 ## Testing
 
