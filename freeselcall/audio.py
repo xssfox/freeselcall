@@ -60,8 +60,11 @@ class AudioDevice:
    
 devices = AudioDevices()
 
-default_input_device = devices.devices[p.get_default_input_device_info()['index']]
-default_output_device = devices.devices[p.get_default_output_device_info()['index']]
+try:
+    default_input_device = devices.devices[p.get_default_input_device_info()['index']]
+    default_output_device = devices.devices[p.get_default_output_device_info()['index']]
+except:
+    pass
 
 
 class InputDevice():
