@@ -293,13 +293,17 @@ void modem_stats_get_rx_spectrum(struct MODEM_STATS *f, float mag_spec_dB[],
 # produce, and some C source code as a string.  This C code needs
 # to make the declarated functions, types and globals available,
 # so it is often just the "#include".
+
+from distutils import sysconfig
+
+
 ffibuilder.set_source("_fsk_cffi",
 """
      #include "fsk.h"   // the C header of the library
 """,
-     libraries=['codec2'],
-     include_dirs = [ "/usr/include/codec2/", "/usr/local/include/codec2/", "/opt/homebrew/include/codec2/"],
-     library_dirs = ["/lib", "/usr/lib", "/usr/local/lib/", "/opt/homebrew/lib/"]
+      libraries=['codec2'],
+      include_dirs = [ "./codec2/src"],
+      library_dirs = ["./dist/lib/"],
      )   # library name, for the linker
 
 if __name__ == "__main__":

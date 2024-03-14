@@ -20,6 +20,7 @@ prompt-toolkit = "^3.0.43"
 setuptools = "^69.0.3"
 flask = "^3.0.2"
 flask-socketio = "^5.3.6"
+cmaketools = "^0.1.6"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "^69.0.3"
@@ -28,6 +29,6 @@ setuptools = "^69.0.3"
 freeselcall = 'freeselcall:__main__.main'
 
 [build-system]
-requires = ["poetry-core","setuptools","cffi"]
+requires = ["cmaketools","wheel", "poetry-core","setuptools","cffi", "cmake>=3.1.0"]
 build-backend = "poetry.core.masonry.api"
 

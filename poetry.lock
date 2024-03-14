@@ -101,6 +101,17 @@ files = [
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
+name = "cmaketools"
+version = "0.1.6"
+description = "Seamless integration of Cmake build system to setuptools/distutils"
+optional = false
+python-versions = "*"
+files = [
+    {file = "cmaketools-0.1.6-py3-none-any.whl", hash = "sha256:2d97279ca6f11dc7bc97366299c16ca58b08768c3e8b447034eb489d695ed7c5"},
+    {file = "cmaketools-0.1.6.tar.gz", hash = "sha256:5a59d7fd0a816767b10955c07c5536f94cd7001b847ab8b343dd435d4d4cb76e"},
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -464,4 +475,4 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "67cd8d80cb58cc670370b1bf600edca5eaefd5cbefce17013b5f5d8046099886"
+content-hash = "31158c56c2ae2ca44e7e698f976918b18c8af60a564a66c911be524d2e4ff257"
