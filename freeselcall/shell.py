@@ -347,19 +347,7 @@ class FreeselcallShell():
                 statuses += snrs
                 statuses += syncs
                 return statuses
-        self.pb =  ProgressBar(
-
-        )
-        self.pb_text = TextArea(height=1, width=30,multiline=False,wrap_lines=False,)
-        self.pb.percentage = 0
-
-        self.pbsplit = VSplit(
-            [
-                self.pb,
-                self.pb_text 
-            ]
-        )
-
+    
         root_container = HSplit([
             Window(
                 content=FormattedTextControl(get_statusbar_text),
@@ -369,7 +357,6 @@ class FreeselcallShell():
             Window(height=1, char="-", style="class:line"),
             self.log_text_area,
             Window(height=1, char="-", style="class:line"),
-            self.pbsplit,
             input_field
         ])
 
