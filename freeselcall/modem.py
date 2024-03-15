@@ -48,6 +48,8 @@ SEL_PH0 = 104     # Phasing RX-0 Position
 PHASING_PATTERN = [SEL_PDX, SEL_PH5, SEL_PDX, SEL_PH4, SEL_PDX, SEL_PH3, SEL_PDX, SEL_PH2, SEL_PDX, SEL_PH1, SEL_PDX, SEL_PH0]
 PHASING_PATTERN_BINARY = [symbol for word in PHASING_PATTERN for symbol in selcall_get_word(word)]
 
+SUPPORTED_FORMATS = [SEL_SEL, SEL_ID]
+
 class CallCategories(enum.Enum):
     RTN = 100
     BIZ = 106
@@ -141,16 +143,6 @@ class Modem():
             # run the demodulator
             lib.fsk_demod(self.modem,from_modem,to_modem)
             
-            # log_line = ""
-            # output_log = False
-            # for x in bytes(from_modem):
-            #     if x:
-            #         log_line += "1"
-            #         output_log = True
-            #     else:
-            #         log_line += "0"
-            # if output_log:
-            #     logging.debug(log_line)
 
             self.rx_demodulated_buffer += bytes(from_modem)
 
@@ -226,14 +218,25 @@ class Modem():
             words.append(d)
         logging.debug("Words: ")
         logging.debug(words)
+        
         if (
-            (words[0] == SEL_SEL) + \
-            (words[1] == SEL_SEL) + \
-            (words[3] == SEL_SEL) + \
-            (words[5] == SEL_SEL)
+            (words[0] in SUPPORTED_FORMATS) + \
+            (words[1] in SUPPORTED_FORMATS) + \
+            (words[3] in SUPPORTED_FORMATS) + \
+            (words[5] in SUPPORTED_FORMATS)
            ) > 2:
             logging.info("Probably a SelCall!")
-        
+            
+            if (
+                (words[0] == SEL_ID) + \
+                (words[1] == SEL_ID) + \
+                (words[3] == SEL_ID) + \
+                (words[5] == SEL_ID)
+            ) > 2:
+                chan_test = True
+            else:
+                chan_test = False
+            
             targets = []
 
             if parity_valid[2] and parity_valid[4]:
@@ -292,15 +295,17 @@ class Modem():
                     {
                         "source": [f"{x:04}" for x in sources],
                         "target": [f"{x:04}" for x in targets],
-                        "message": "SelCall",
+                        "message": "ChanTest" if chan_test else "SelCall",
                         "words": words,
                         "snr": self.header_snr,
                         "category": category
                     }
                 )
+        else:
+            logging.warning(f"Not known selcall type : {words}")
         
 
-    def sel_call_modulate(self, source, target, category=CallCategories.RTN) -> bytes:
+    def sel_call_modulate(self, source, target, category=CallCategories.RTN, channel_test=False) -> bytes:
         """
         Modulates a selcall into audio samples (also bytes)
         """
@@ -318,7 +323,10 @@ class Modem():
         addr_B1 = (target//100)%100
         addr_B2 = target%100
 
-        callmsg = [SEL_SEL, SEL_SEL, addr_B1, SEL_SEL, addr_B2, SEL_SEL, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
+        if channel_test:
+            callmsg = [SEL_ID, SEL_ID, addr_B1, SEL_ID, addr_B2, SEL_ID, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
+        else:
+            callmsg = [SEL_SEL, SEL_SEL, addr_B1, SEL_SEL, addr_B2, SEL_SEL, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
 
         callmsg_bits = [symbol for word in callmsg for symbol in selcall_get_word(word)]
 
@@ -366,5 +374,4 @@ class FreeselcallTX():
     def __init__(self):
         self.modem = Modem()
         self.sample_rate = 8000
-    def sel_call_modulate(self, source, target ,call_category=CallCategories.RTN):
-        return self.modem.sel_call_modulate(source, target, call_category)
+        self.sel_call_modulate = self.modem.sel_call_modulate

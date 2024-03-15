@@ -70,9 +70,23 @@ def ws_selcall(args):
         logging.warning(f"Invalid Selcall id in call from websockets {args}")
         emit("error", {"message": "Incorrect selcall id"})
         return
-    logging.debug(CallCategories[args['category']])
     tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'])
     logging.info(f"websocket selcall {id}")
+
+@socketio.on("selcall", namespace="/freeselcall")
+def ws_chantest(args):
+    try:
+        id = int(args['id'])
+        if id < 0 or id > 9999:
+            logging.warning(f"Invalid Selcall id in call from websockets {id}")
+            emit("error", {"message": "Incorrect selcall id"})
+            return
+    except:
+        logging.warning(f"Invalid Selcall id in call from websockets {args}")
+        emit("error", {"message": "Incorrect selcall id"})
+        return
+    tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'], True)
+    logging.info(f"websocket chantest {id}")
 
 @socketio.on("info", namespace="/freeselcall")
 def ws_info(args):

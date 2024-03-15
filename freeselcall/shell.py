@@ -152,9 +152,14 @@ class FreeselcallShellCommands():
         except:
             return "Value out of range - should be 0000 to 9999"
         return f"ID set to {arg}"
-    def do_selcall(self,arg="5678"):
+    def do_selcall(self,arg):
         "Performs a selcall - example: selcall 1234"
         mod_out = self.modem_tx.sel_call_modulate(self.options.id,int(arg), self.call_category)
+        self.output_device.write(mod_out)
+
+    def do_chantest(self,arg):
+        "Performs a channel test - remote radio should respond - example: selcall 1234"
+        mod_out = self.modem_tx.sel_call_modulate(self.options.id,int(arg), self.call_category, channel_test=True)
         self.output_device.write(mod_out)
 
         

@@ -8,6 +8,7 @@ import time
 from . import rigctl
 import datetime
 import traceback
+from . import chan_test_tune
 from prompt_toolkit.formatted_text import HTML, to_formatted_text
 
 logging.basicConfig()
@@ -48,6 +49,7 @@ def main():
     p.add('--ptt-off-delay-ms', type=int, default=100, env_var="FREESELCALL_PTT_OFF_DELAY_MS", help="Delay after sending data before releasing PTT")
 
     p.add('--id', type=int, default=1234, env_var="FREESELCALL_ID", help="ID to notify of selcall and used to send selcall")
+    p.add('--no-chan-test', action='store_true', env_var="FREESELCALL_NO_CHAN_TEST", help="Disables automatic replying to channel tests")
 
     p.add('--no-web', action='store_true', env_var="FREESELCALL_NO_WEB")
     p.add('--web-host', type=str, default="127.0.0.1", env_var="FREESELCALL_WEB_HOST")
@@ -104,20 +106,21 @@ def main():
     else:
         modem_tx =  FreeselcallTX()
         logging.info(f"Initialised TX freeselcall Modem - version: {modem_tx.modem.version}")
-        def tx(arg, category):
+        def tx(arg, category, chan_test=False):
             "Performs a selcall - example: selcall 1234"
-            mod_out = modem_tx.sel_call_modulate(options.id,int(arg), category)
+            mod_out = modem_tx.sel_call_modulate(options.id,int(arg), category, chan_test)
             output_device.write(mod_out)
 
 
         def rx(data):
             try:
-                if data['message'] == "SelCall":
+                if data['message'] in ["SelCall","ChanTest"]:
                     if not options.no_web:
                         web.rx(data)
                     if not options.no_cli: 
+                            cat = "CHANTEST" if data["message"] == "ChanTest" else data['category']
                             shell.add_text(
-                                HTML("<chat.callsign>&lt;{}&gt;</chat.callsign> -> <chat.callsign>&lt;{}&gt;</chat.callsign> [{}] <chat.message>{}</chat.message>\n").format(", ".join(data['source']), ", ".join(data['target']),data['category'], data['message']).value
+                                HTML("<chat.callsign>&lt;{}&gt;</chat.callsign> -> <chat.callsign>&lt;{}&gt;</chat.callsign> [{}] <chat.message>{}</chat.message>\n").format(", ".join(data['source']), ", ".join(data['target']),cat, data['message']).value
                             )
                     else:
                         print(f"\n<{', '.join(data['source'])}> {', '.join(data['target'])} - {data['message']}")
@@ -129,6 +132,9 @@ def main():
                 if data['message'] == "Preamble":
                     if not options.no_web:
                         web.preamble(data)
+                if not options.no_chan_test and data['message'] == 'ChanTest' and f"{options.id:04}" in data['target']:
+                    logging.info("Sending back chan test.")
+                    output_device.write_raw(chan_test_tune.samples)
             except:
                 logging.critical(
                     traceback.format_exc()
