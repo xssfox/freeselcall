@@ -5,7 +5,7 @@ description = ""
 authors = ["xssfox <xss@sprocketfox.io>"]
 readme = "README.md"
 include = [
-    { path = "codec2", format =  ["sdist", "wheel"] },
+    { path = "codec2", format =  ["sdist"] },
 ]
 
 [tool.poetry.build]
