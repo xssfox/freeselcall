@@ -4,3 +4,6 @@ build
 dist
 __pycache__
 freeselcall/__pycache__
+build_codec2
+Dockerfile
+.dockerignore

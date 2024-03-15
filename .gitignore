@@ -11,3 +11,4 @@ TODO
 .DS_Store
 build
 dist
+build_codec2

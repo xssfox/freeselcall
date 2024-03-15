@@ -301,9 +301,8 @@ ffibuilder.set_source("_fsk_cffi",
 """
      #include "fsk.h"   // the C header of the library
 """,
-      libraries=['codec2'],
+      extra_objects=['./build_codec2/src/libcodec2.a'],
       include_dirs = [ "./codec2/src"],
-      library_dirs = ["./dist/lib/"],
      )   # library name, for the linker
 
 if __name__ == "__main__":
