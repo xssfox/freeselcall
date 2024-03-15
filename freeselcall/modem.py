@@ -3,6 +3,7 @@ from _fsk_cffi import ffi, lib
 from typing import Callable
 import logging
 from dataclasses import dataclass
+import enum
 
 FDMDV_SCALE = 825
 
@@ -30,7 +31,9 @@ def selcall_get_word(value) -> list:
 SEL_SEL = 120     # Selective call
 SEL_ID  = 123     # Individual station semi-automatic/automatic service (Codan channel test)
 SEL_EOS = 127     # ROS
-SEL_RTN = 100     # Routine call
+
+
+
 SEL_ARQ = 117     # Acknowledge Request (EOS)
 SEL_PDX = 125     # Phasing DX Position
 SEL_PH7 = 111     # Phasing RX-7 position
@@ -44,6 +47,14 @@ SEL_PH0 = 104     # Phasing RX-0 Position
 
 PHASING_PATTERN = [SEL_PDX, SEL_PH5, SEL_PDX, SEL_PH4, SEL_PDX, SEL_PH3, SEL_PDX, SEL_PH2, SEL_PDX, SEL_PH1, SEL_PDX, SEL_PH0]
 PHASING_PATTERN_BINARY = [symbol for word in PHASING_PATTERN for symbol in selcall_get_word(word)]
+
+class CallCategories(enum.Enum):
+    RTN = 100
+    BIZ = 106
+    SAFETY = 108
+    URGENT = 110
+    DISTRESS =112
+
 
 class Modem():
     def __init__(self, callback=None):
@@ -252,6 +263,21 @@ class Modem():
             if parity_valid[13] and parity_valid[10]:
                 sources.append(words[13]*100 + words[10])
 
+            category = None
+            try:
+                if parity_valid[6]:
+                    category = CallCategories(words[6]).name
+                elif parity_valid[11]:
+                    category = CallCategories(words[11]).name
+                else:
+                    logging.warning("Parity bad for both callcategory words")
+            except ValueError:
+                logging.warning("Unknown call category")
+                if parity_valid[6]:
+                    category = words[6]
+                if parity_valid[11]:
+                    category = words[11]
+
             sources = set(sources)
             if len(sources) > 1:
                 logging.warning(f"More than one source decoded: {sources}")
@@ -268,12 +294,13 @@ class Modem():
                         "target": [f"{x:04}" for x in targets],
                         "message": "SelCall",
                         "words": words,
-                        "snr": self.header_snr 
+                        "snr": self.header_snr,
+                        "category": category
                     }
                 )
         
 
-    def sel_call_modulate(self, source, target) -> bytes:
+    def sel_call_modulate(self, source, target, category=CallCategories.RTN) -> bytes:
         """
         Modulates a selcall into audio samples (also bytes)
         """
@@ -291,7 +318,7 @@ class Modem():
         addr_B1 = (target//100)%100
         addr_B2 = target%100
 
-        callmsg = [SEL_SEL, SEL_SEL, addr_B1, SEL_SEL, addr_B2, SEL_SEL, SEL_RTN, addr_B1, addr_A1, addr_B2, addr_A2, SEL_RTN, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
+        callmsg = [SEL_SEL, SEL_SEL, addr_B1, SEL_SEL, addr_B2, SEL_SEL, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
 
         callmsg_bits = [symbol for word in callmsg for symbol in selcall_get_word(word)]
 
@@ -339,5 +366,5 @@ class FreeselcallTX():
     def __init__(self):
         self.modem = Modem()
         self.sample_rate = 8000
-    def sel_call_modulate(self, source, target):
-        return self.modem.sel_call_modulate(source, target)
+    def sel_call_modulate(self, source, target ,call_category=CallCategories.RTN):
+        return self.modem.sel_call_modulate(source, target, call_category)

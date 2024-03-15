@@ -24,13 +24,32 @@
         <div class="row">
             <h2>TX</h2>
             <form action="javascript:tx_form()">
+            <div class="row g-3">
+                <div class="col-md-6">
                 <div class="form-group">
-                    <label for="target">Target</label>
+                    <!-- <label for="target">Target:</label> -->
                     <input class="form-control" id="target" aria-describedby="targetHelp"
                         placeholder="Enter 4 digit ID" maxlength="4">
                     <small id="targetHelp" class="form-text text-muted">Selcall 4 digit radio ID.</small>
                 </div>
-                <button type="submit" class="btn btn-primary">Call</button>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <!-- <label for="target">Call Category:</label> -->
+                    <select class="form-select" aria-label="Category" id="category">
+                        <option selected value="RTN">Routine</option>
+                        <option value="BIZ">Business</option>
+                        <option value="SAFETY">Safety</option>
+                        <option value="URGENT">Urgent</option>
+                        <option value="DISTRESS">Distress</option>
+                      </select>
+                </div>
+            </div>
+            <div class="col-md-2"><button type="submit" class="btn btn-primary">Call</button></div>
+            
+        </div>
+        
+
             </form>
         </div>
         <div class="row">
@@ -55,10 +74,25 @@
         function log_selcall(data) {
             var alert_log = document.createElement("div")
             alert_log.classList.add("alert")
-            alert_log.classList.add("alert-info")
+            if (data.category == "SAFETY"){
+                alert_log.classList.add("alert-warning")
+            } else if (data.category == "URGENT"){
+                alert_log.classList.add("alert-warning")
+            } else if (data.category == "DISTRESS"){
+                alert_log.classList.add("alert-danger")
+            } else {
+                alert_log.classList.add("alert-info")
+            }
+            
             alert_log.role = "alert"
-            alert_log.innerText = new Date().toISOString() + " Selcall from " + data.source[0] + " to " + data.target[0] + " [" + data.snr +  "db]"
-            document.getElementById("rx_log").appendChild(alert_log)
+            alert_log.innerText = new Date().toISOString() + " [" + data.category + "] " + " Selcall from " + data.source[0] + " to " + data.target[0] + " [" + data.snr.toFixed(2) +  "db]"
+            document.getElementById("rx_log").prepend(alert_log)
+
+            if (data['target'].indexOf(document.getElementById("my-id").innerText) != -1){
+                var text = "[" +data.category + "] selcall from " + data.source[0];
+                var notification = new Notification("Selcall", { body: text});
+            }
+            
         }
 
         function log_preamble(data) {
@@ -66,8 +100,8 @@
             alert_log.classList.add("alert")
             alert_log.classList.add("alert-light")
             alert_log.role = "alert"
-            alert_log.innerText = new Date().toISOString() + " Preamble detected" + " [" + data.snr +  "db]"
-            document.getElementById("rx_log").appendChild(alert_log)
+            alert_log.innerText = new Date().toISOString() + " Preamble detected" + " [" + data.snr.toFixed(2) +  "db]"
+            document.getElementById("rx_log").prepend(alert_log)
         }
         
         function info(data){
@@ -106,9 +140,14 @@
         }
 
         function tx_form() {
-            var target = document.getElementById("target").value
+            var target = { "id": document.getElementById("target").value, "category": document.getElementById("category").value }
             socket.emit("selcall", target)
         }
+
+
+        Notification.requestPermission().then((result) => {
+            console.log(result);
+        });
         
     </script>
 </body>

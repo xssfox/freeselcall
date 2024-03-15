@@ -21,7 +21,7 @@ import readline
 import code
 import rlcompleter
 import pydub.generators
-from .modem import  FreeselcallRX,  FreeselcallTX
+from .modem import  FreeselcallRX,  FreeselcallTX, CallCategories
 import traceback
 from pathlib import Path
 import argparse
@@ -41,6 +41,7 @@ class FreeselcallShellCommands():
         self.output_device = output_device
         self.p = parser
         self.options = options
+        self.call_category = CallCategories.RTN
 
     @property
     def commands(self):
@@ -86,31 +87,22 @@ class FreeselcallShellCommands():
         
         self.output_device.write_raw(sin_wave.raw_data)
 
-    # def help_mode(self):
-    #     return "NotImplemented"
-    #     #raise NotImplemented
-    #     #return f"Change TX Mode: mode [{', '.join([x.name for x in Modems])}]"
-    
-    # def do_mode(self, arg):
-    #     "NotImplemented"
-    #     raise NotImplemented
-        # if arg == "":
-        #     return f"Current mode: {self.modem_tx.modem.modem_name}"
-            
-        
-        # arg = arg.upper()
+    def help_category(self):
+        return f"Change Selcall type: category [{', '.join([x.name for x in CallCategories])}]"
 
-        # if arg not in [x.name for x in Modems]:
-        #     return f"Mode must be {', '.join([x.name for x in Modems])}"
-        # else:
-        #     self.modem_tx.set_mode(arg)
-        #     self.options.mode = arg
-        #     return f"Set mode {arg}"
-    # def completion_mode(self):
-    #     raise NotImplemented
-        # return {
-        #     x.name : None for x in Modems
-        # }
+    def do_category(self, arg):
+        if arg == "":
+            return f"Current mode: {self.call_category.name}"
+
+        arg = arg.upper()
+        if arg not in [x.name for x in CallCategories]:
+            return f"Category must be {', '.join([x.name for x in CallCategories])}"
+        else:
+            self.call_category = CallCategories[arg]
+    def completion_category(self):
+        return {
+            x.name : None for x in CallCategories
+        }
 
     def do_clear(self, arg):
         "Clears TX queues"
@@ -148,16 +140,7 @@ class FreeselcallShellCommands():
         except ValueError:
             return "Usage is: volume -4.5"
         return f"Set TX volume to {float(arg)} db"
-    # def do_max_packets_combined(self,arg):
-    #     "Set the max number of packets to combine together for a single transmission"
-    #     if arg == "":
-    #         return f"max_packets_combined: {self.options.max_packets_combined}"
-    #     try: 
-    #         self.modem_tx.max_packets_combined = int(arg)
-    #         self.options.max_packets_combined = int(arg)
-    #     except ValueError:
-    #         return "Usage is: max_packets_combined 5"
-    #     return f"Set max_packets_combined to {int(arg)}"
+
     
     def do_id(self,arg):
         "Sets ID - example: callsign N0CALL"
@@ -171,18 +154,9 @@ class FreeselcallShellCommands():
         return f"ID set to {arg}"
     def do_selcall(self,arg="5678"):
         "Performs a selcall - example: selcall 1234"
-        mod_out = self.modem_tx.sel_call_modulate(self.options.id,int(arg))
+        mod_out = self.modem_tx.sel_call_modulate(self.options.id,int(arg), self.call_category)
         self.output_device.write(mod_out)
-    # def do_msg(self, arg):
-    #     "NotImplemented"
-    #     raise NotImplemented
-        # "Send a message"
 
-        # if not self.options.callsign:
-        #    return "Set callsign with the callsign command first\n"
-
-        # data =  self.options.callsign.encode() + b"\xff" + arg.encode()
-        # self.output_device.write(Packet(data, header=b"\xfe"))
         
     def do_exit(self, arg):
         "Exits freeselcall"

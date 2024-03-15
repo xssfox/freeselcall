@@ -3,7 +3,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit, send
 import logging
 from flask import request, abort, make_response, send_file, redirect
-
+from .modem import CallCategories
 app = Flask(__name__)
 socketio = SocketIO(app)
 
@@ -55,18 +55,23 @@ def selcall():
         abort(401)
     
     logging.debug(f"Web Selcall request {id}")
-    tx(id)
+    tx(id, CallCategories[request.form['category'] if 'category' in request.form else 'RTN'])
     return "Calling"
 
 @socketio.on("selcall", namespace="/freeselcall")
 def ws_selcall(args):
     try:
-        id = int(args)
+        id = int(args['id'])
         if id < 0 or id > 9999:
-            raise ValueError
+            logging.warning(f"Invalid Selcall id in call from websockets {id}")
+            emit("error", {"message": "Incorrect selcall id"})
+            return
     except:
-        raise ValueError
-    tx(id)
+        logging.warning(f"Invalid Selcall id in call from websockets {args}")
+        emit("error", {"message": "Incorrect selcall id"})
+        return
+    logging.debug(CallCategories[args['category']])
+    tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'])
     logging.info(f"websocket selcall {id}")
 
 @socketio.on("info", namespace="/freeselcall")

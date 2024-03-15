@@ -104,9 +104,9 @@ def main():
     else:
         modem_tx =  FreeselcallTX()
         logging.info(f"Initialised TX freeselcall Modem - version: {modem_tx.modem.version}")
-        def tx(arg):
+        def tx(arg, category):
             "Performs a selcall - example: selcall 1234"
-            mod_out = modem_tx.sel_call_modulate(options.id,int(arg))
+            mod_out = modem_tx.sel_call_modulate(options.id,int(arg), category)
             output_device.write(mod_out)
 
 
@@ -117,7 +117,7 @@ def main():
                         web.rx(data)
                     if not options.no_cli: 
                             shell.add_text(
-                                HTML("<chat.callsign>&lt;{}&gt;</chat.callsign> -> <chat.callsign>&lt;{}&gt;</chat.callsign> <chat.message>{}</chat.message>\n").format(", ".join(data['source']), ", ".join(data['target']), data['message']).value
+                                HTML("<chat.callsign>&lt;{}&gt;</chat.callsign> -> <chat.callsign>&lt;{}&gt;</chat.callsign> [{}] <chat.message>{}</chat.message>\n").format(", ".join(data['source']), ", ".join(data['target']),data['category'], data['message']).value
                             )
                     else:
                         print(f"\n<{', '.join(data['source'])}> {', '.join(data['target'])} - {data['message']}")

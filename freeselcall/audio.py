@@ -113,7 +113,7 @@ class InputDevice():
                     input=True,
                     stream_callback=self.pa_callback,
                     input_device_index=self.device.id,
-                    frames_per_buffer=4096
+                    frames_per_buffer=8192
                 )
 
     def close(self):
@@ -228,7 +228,7 @@ class OutputDevice():
                     input=False,
                     output_device_index=self.device.id,
                     stream_callback=self.pa_callback,
-                    frames_per_buffer=4096
+                    frames_per_buffer=8192
                 )
 
 
