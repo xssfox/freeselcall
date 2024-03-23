@@ -106,9 +106,9 @@ def main():
     else:
         modem_tx =  FreeselcallTX()
         logging.info(f"Initialised TX freeselcall Modem - version: {modem_tx.modem.version}")
-        def tx(arg, category, chan_test=False):
+        def tx(arg, category, chan_test=False, page=None):
             "Performs a selcall - example: selcall 1234"
-            mod_out = modem_tx.sel_call_modulate(options.id,int(arg), category, chan_test)
+            mod_out = modem_tx.sel_call_modulate(options.id,int(arg), category, chan_test, page=page)
             output_device.write(mod_out)
 
 
@@ -135,6 +135,14 @@ def main():
                 if not options.no_chan_test and data['message'] == 'ChanTest' and f"{options.id:04}" in data['target']:
                     logging.info("Sending back chan test.")
                     output_device.write_raw(chan_test_tune.samples)
+                if data['message'] == "Page":
+                    if not options.no_web:
+                        web.rx(data)
+                    if not options.no_cli: 
+                            shell.add_text(
+                                HTML("<chat.callsign>&lt;{}&gt;</chat.callsign> -> <chat.callsign>&lt;{}&gt;</chat.callsign> [{}] <chat.message>{}</chat.message>\n").format(", ".join(data['source']), ", ".join(data['target']),data['category'], data['page']).value)
+                    else:
+                        print(f"\n<{', '.join(data['source'])}> {', '.join(data['target'])} - {data['page']}")
             except:
                 logging.critical(
                     traceback.format_exc()

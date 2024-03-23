@@ -73,7 +73,7 @@ def ws_selcall(args):
     tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'])
     logging.info(f"websocket selcall {id}")
 
-@socketio.on("selcall", namespace="/freeselcall")
+@socketio.on("chantest", namespace="/freeselcall")
 def ws_chantest(args):
     try:
         id = int(args['id'])
@@ -86,6 +86,21 @@ def ws_chantest(args):
         emit("error", {"message": "Incorrect selcall id"})
         return
     tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'], True)
+    logging.info(f"websocket chantest {id}")
+
+@socketio.on("page", namespace="/freeselcall")
+def ws_page(args):
+    try:
+        id = int(args['id'])
+        if id < 0 or id > 9999:
+            logging.warning(f"Invalid Selcall id in call from websockets {id}")
+            emit("error", {"message": "Incorrect selcall id"})
+            return
+    except:
+        logging.warning(f"Invalid Selcall id in call from websockets {args}")
+        emit("error", {"message": "Incorrect selcall id"})
+        return
+    tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'], True, page=args['page'])
     logging.info(f"websocket chantest {id}")
 
 @socketio.on("info", namespace="/freeselcall")

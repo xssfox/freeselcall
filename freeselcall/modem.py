@@ -10,7 +10,9 @@ FDMDV_SCALE = 825
 
 PHASING_PATTERN_THRESHOLD = 0.85
 MAX_RX_BUFFER_SIZE_BITS = 10*(12+18)
+MAX_RX_BUFFER_SIZE_BITS_PAGE = 10*(12+ 28 + (64* 2)) # (phasing(12) + paging header/footer + 64*2 words for page mssage) * 10 bits
 
+ASCII_OFFSET = 27 # used for pages
 
 def selcall_get_word(value) -> list:
     """
@@ -31,7 +33,7 @@ def selcall_get_word(value) -> list:
 SEL_SEL = 120     # Selective call
 SEL_ID  = 123     # Individual station semi-automatic/automatic service (Codan channel test)
 SEL_EOS = 127     # ROS
-
+SEL_MSG = 102
 
 
 SEL_ARQ = 117     # Acknowledge Request (EOS)
@@ -81,6 +83,7 @@ class Modem():
         self.callback = callback
         self.bytes_per_frame
         self.found_header = False
+        self.header_snr = None
         logging.debug("meow")
 
     @property
@@ -171,29 +174,53 @@ class Modem():
                 if (self.rx_demodulated_buffer[x:x+len(PHASING_PATTERN_BINARY)] == bytearray(PHASING_PATTERN_BINARY)) or \
                     matches/len(PHASING_PATTERN_BINARY) > PHASING_PATTERN_THRESHOLD:
                     header_found = True
-                    self.header_snr = self.snr
+                    if not self.header_snr:
+                        self.header_snr = self.snr
                     if self.found_header == False:
                         logging.info(f"Found phasing pattern - {x}")
                     self.found_header = True
-                    if x < self.bytes_per_frame:
-                        logging.info("Should have the rest of the packet by now")
-                        logging.debug(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):x+MAX_RX_BUFFER_SIZE_BITS])
-                        self.process(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):x+MAX_RX_BUFFER_SIZE_BITS])
+                    early_exit = True
+                    if self.is_page(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):]):
+                        early_exit = False
+                        logging.debug("Is likely a page - wait for more data")
+                    if ((x + MAX_RX_BUFFER_SIZE_BITS + len(PHASING_PATTERN_BINARY) <= len(self.rx_demodulated_buffer)) and early_exit) or \
+                        (x < self.bytes_per_frame):
+                        logging.debug(len(self.rx_demodulated_buffer))
+                        logging.info(f"Should have the rest of the packet by now {x}")
+                        packet_length = MAX_RX_BUFFER_SIZE_BITS if early_exit else MAX_RX_BUFFER_SIZE_BITS_PAGE
+                        logging.debug(packet_length)
+                        logging.debug(len(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):x+packet_length+len(PHASING_PATTERN_BINARY)]))
+                        self.process(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):x+packet_length+len(PHASING_PATTERN_BINARY)])
+                        del self.rx_demodulated_buffer[:] # wipe the buffer so we don't decode twice
+                        self.header_snr = None # reset SNR
+                        return
             if header_found == False:
                 if self.found_header:
                     logging.debug("header lost out of buffer")
+                    self.header_snr = None
                 self.found_header = False
             #logging.debug(self.rx_demodulated_buffer)
-            if len(self.rx_demodulated_buffer) > MAX_RX_BUFFER_SIZE_BITS:
-                del self.rx_demodulated_buffer[0:len(self.rx_demodulated_buffer)-MAX_RX_BUFFER_SIZE_BITS]
+            if len(self.rx_demodulated_buffer) > MAX_RX_BUFFER_SIZE_BITS_PAGE:
+                del self.rx_demodulated_buffer[0:len(self.rx_demodulated_buffer)-MAX_RX_BUFFER_SIZE_BITS_PAGE]
 
             #logging.debug(bytes(from_modem))
-
+    def is_page(self, data):
+        words = []
+        for index in range(0,len(data)-10,10):
+            d = 0
+            for i in range(0,7):
+                d += data[index+i] * 128
+                d = d >> 1
+            words.append(d)
+        if len(words) >= 18:
+            if (words[12] == SEL_MSG) or (words[17] == SEL_MSG):
+                return True
+        return False
          
     def process(self, data):
         words = []
         parity_valid = []
-        for index in range(0,len(data),10):
+        for index in range(0,len(data)-10,10):
             # for i in range(0,10):
             #     print(data[index+i], end="")
             # print()
@@ -290,6 +317,61 @@ class Modem():
             logging.debug(f"sources : {sources}")
             
             logging.info(f"SelCall from {sources} to {targets}")
+
+            if ((words[12] == SEL_MSG and parity_valid[12]) or (words[17] == SEL_MSG  and parity_valid[17])):
+                logging.debug("Page call")
+
+                # determine length of page
+                page_length = None
+                for x in range(0, len(words) - 11):
+                    count_of_eof = (words[x]  == SEL_ARQ) + \
+                    (words[x+5] == SEL_ARQ) + \
+                    (words[x+6] == SEL_ARQ) + \
+                    (words[x+8] == SEL_ARQ) + \
+                    (words[x+10] == SEL_ARQ) + \
+                    (words[x+11] == SEL_ARQ)
+                    #logging.debug(count_of_eof)
+                    if (count_of_eof) > 3:
+                        page_length =  6+((x - 28)//2) # 28 = fixed frame parts, then divide by 2 as each char repeated twice + 6 for the length of the eof
+                        logging.debug(f"Page length {page_length}")
+                        break
+                if not page_length:
+                    logging.warning("Could not find end of page - giving up")
+                if page_length:
+                    page = [None]*page_length
+                    for x in range(0, (page_length)):
+                        if not parity_valid[x*2+16]:
+                            logging.warning(f"parity invalid for word in page:{x+16}")
+                        else:
+                            page[x] = chr(words[x*2+16] + ASCII_OFFSET)
+                        
+                        if not parity_valid[x*2+21]:
+                            logging.warning(f"parity invalid for word in page:{x+21}")
+                            if not page[x]:
+                                logging.warning(f"No good data for page index {x}, filling in with �")
+                                page[x] = "�"
+                        else:
+                            b_char = chr(words[x*2+21] + ASCII_OFFSET)
+                            if page[x] and page[x] != b_char:
+                                logging.warning(f"two different good parity decodes for word {x+16}/{x+21} : {page[x]}/{b_char}")
+                                #print(page)
+                            else:
+                                page[x] = chr(words[x*2+21] + ASCII_OFFSET)
+                    page = "".join(page)
+                    logging.debug(f"Page: {page}")
+                    self.callback(
+                        {
+                            "source": [f"{x:04}" for x in sources],
+                            "target": [f"{x:04}" for x in targets],
+                            "message": "Page",
+                            "page": page,
+                            "words": words,
+                            "snr": self.header_snr,
+                            "category": category
+                        }
+                    )
+                    return
+                    
             if self.callback:
                 self.callback(
                     {
@@ -305,7 +387,7 @@ class Modem():
             logging.warning(f"Not known selcall type : {words}")
         
 
-    def sel_call_modulate(self, source, target, category=CallCategories.RTN, channel_test=False) -> bytes:
+    def sel_call_modulate(self, source, target, category=CallCategories.RTN, channel_test=False, page=None) -> bytes:
         """
         Modulates a selcall into audio samples (also bytes)
         """
@@ -323,7 +405,29 @@ class Modem():
         addr_B1 = (target//100)%100
         addr_B2 = target%100
 
-        if channel_test:
+        if page:
+            callmsg = [None] * (28 + (len(page)* 2))
+                       # 0        1      2          3       4      5         6                7      8        9       10          11             12      13       14              15       16               17             18              19
+            callmsg[0:20] = [SEL_ID, SEL_ID, addr_B1, SEL_ID, addr_B2, SEL_ID, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_MSG, addr_A1, category.value, addr_A2,  None,         SEL_MSG,          None,      category.value   ]
+            
+            # add the message data
+            for x in range(0, len(page)):
+                callmsg[(x*2)+16] = ord(page[x])-ASCII_OFFSET
+                callmsg[(x*2)+21] = ord(page[x])-ASCII_OFFSET
+            
+            callmsg[16 + len(page)*2 ]    = SEL_ARQ
+            callmsg[16 + len(page)*2 +2]  = 65 # not sure what these are
+            callmsg[16 + len(page)*2 +4]  = 23 # not sure what these are
+            callmsg[16 + len(page)*2 +5]  = SEL_ARQ
+            callmsg[16 + len(page)*2 +7]  = 65 # not sure what these are
+            callmsg[16 + len(page)*2 +6]  = SEL_ARQ
+            callmsg[16 + len(page)*2 +8]  = SEL_ARQ
+            callmsg[16 + len(page)*2 +9]  = 23 # not sure what these are
+            callmsg[16 + len(page)*2 +10] = SEL_ARQ
+            callmsg[16 + len(page)*2 +11] = SEL_ARQ
+            logging.debug(callmsg)
+
+        elif channel_test:
             callmsg = [SEL_ID, SEL_ID, addr_B1, SEL_ID, addr_B2, SEL_ID, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
         else:
             callmsg = [SEL_SEL, SEL_SEL, addr_B1, SEL_SEL, addr_B2, SEL_SEL, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]

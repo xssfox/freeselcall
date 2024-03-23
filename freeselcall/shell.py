@@ -162,6 +162,11 @@ class FreeselcallShellCommands():
         mod_out = self.modem_tx.sel_call_modulate(self.options.id,int(arg), self.call_category, channel_test=True)
         self.output_device.write(mod_out)
 
+    def do_page(self,arg):
+        "Sends a page - example: page 1234 meow"
+        (to,message) = arg.split(" ",1)
+        mod_out = self.modem_tx.sel_call_modulate(self.options.id,int(to), self.call_category, channel_test=True, page=message)
+        self.output_device.write(mod_out)
         
     def do_exit(self, arg):
         "Exits freeselcall"

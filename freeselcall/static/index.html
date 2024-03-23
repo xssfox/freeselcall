@@ -17,40 +17,94 @@
     <!-- Begin page content -->
     <main role="main" class="container gap-4 d-grid ">
         <div class="row">
-            <h1 class="mt-5">Freeselcall <span class="badge rounded-pill bg-secondary" id="status">Disconnected</span></h1>
+            <h1 class="mt-5">Freeselcall <span class="badge rounded-pill bg-secondary" id="status">Disconnected</span>
+            </h1>
             <p>Selcall decoder test interface</p>
             <p><b>My ID: </b><span id="my-id"></span></p>
         </div>
+
         <div class="row">
             <h2>TX</h2>
             <form action="javascript:tx_form()">
-            <div class="row g-3">
-                <div class="col-md-6">
-                <div class="form-group">
-                    <!-- <label for="target">Target:</label> -->
-                    <input class="form-control" id="target" aria-describedby="targetHelp"
-                        placeholder="Enter 4 digit ID" maxlength="4">
-                    <small id="targetHelp" class="form-text text-muted">Selcall 4 digit radio ID.</small>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="form-group">
-                    <!-- <label for="target">Call Category:</label> -->
-                    <select class="form-select" aria-label="Category" id="category">
-                        <option selected value="RTN">Routine</option>
-                        <option value="BIZ">Business</option>
-                        <option value="SAFETY">Safety</option>
-                        <option value="URGENT">Urgent</option>
-                        <option value="DISTRESS">Distress</option>
-                      </select>
-                </div>
-            </div>
-            <div class="col-md-2"><button type="submit" class="btn btn-primary">Call</button></div>
-            
-        </div>
-        
+                <div class="row">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <!-- <label for="target">Target:</label> -->
+                                <input class="form-control" id="target" aria-describedby="targetHelp"
+                                    placeholder="Enter 4 digit ID" maxlength="4">
+                                <small id="targetHelp" class="form-text text-muted">Selcall 4 digit radio ID.</small>
+                            </div>
 
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <!-- <label for="target">Call Category:</label> -->
+                                <select class="form-select" aria-label="Category" id="category">
+                                    <option selected value="RTN">Routine</option>
+                                    <option value="BIZ">Business</option>
+                                    <option value="SAFETY">Safety</option>
+                                    <option value="URGENT">Urgent</option>
+                                    <option value="DISTRESS">Distress</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-2"><button type="submit" class="btn btn-primary">Call</button></div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="chanTest">
+                                <label class="form-check-label" for="chanTest">Channel Test</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </form>
+        </div>
+
+        <div class="row">
+            <h2>Page</h2>
+            <div class="row ">
+                <form action="javascript:tx_page_form()">
+                    <div class="row ">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <!-- <label for="target">Target:</label> -->
+                                <input class="form-control" id="target_page" aria-describedby="target_pageHelp"
+                                    placeholder="Enter 4 digit ID" maxlength="4">
+                                <small id="target_pageHelp" class="form-text text-muted">Selcall 4 digit radio
+                                    ID.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <!-- <label for="target">Call Category:</label> -->
+                                <select class="form-select" aria-label="Category" id="category_page">
+                                    <option selected value="RTN">Routine</option>
+                                    <option value="BIZ">Business</option>
+                                    <option value="SAFETY">Safety</option>
+                                    <option value="URGENT">Urgent</option>
+                                    <option value="DISTRESS">Distress</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2"><button type="submit" class="btn btn-primary">Page</button></div>
+
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <!-- <label for="target">Target:</label> -->
+                                <input class="form-control" id="page_message" aria-describedby="page_messageHelp"
+                                    placeholder="Message" maxlength="64">
+                                <small id="page_messageHelp" class="form-text text-muted">Message to send.</small>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
         <div class="row">
             <h2>RX Log</h2>
@@ -72,27 +126,59 @@
         var socket = io.connect("/freeselcall");
 
         function log_selcall(data) {
+            if (data.message == "Page") {
+                log_page(data);
+                return;
+            }
             var alert_log = document.createElement("div")
             alert_log.classList.add("alert")
-            if (data.category == "SAFETY"){
+            if (data.category == "SAFETY") {
                 alert_log.classList.add("alert-warning")
-            } else if (data.category == "URGENT"){
+            } else if (data.category == "URGENT") {
                 alert_log.classList.add("alert-warning")
-            } else if (data.category == "DISTRESS"){
+            } else if (data.category == "DISTRESS") {
                 alert_log.classList.add("alert-danger")
             } else {
                 alert_log.classList.add("alert-info")
             }
-            
+
             alert_log.role = "alert"
-            alert_log.innerText = new Date().toISOString() + " [" + data.category + "] " + " Selcall from " + data.source[0] + " to " + data.target[0] + " [" + data.snr.toFixed(2) +  "db]"
+            alert_log.innerText = new Date().toISOString() + " [" + data.category + "] " + " Selcall from " + data.source[0] + " to " + data.target[0] + " [" + data.snr.toFixed(2) + "db]"
             document.getElementById("rx_log").prepend(alert_log)
 
-            if (data['target'].indexOf(document.getElementById("my-id").innerText) != -1){
-                var text = "[" +data.category + "] selcall from " + data.source[0];
-                var notification = new Notification("Selcall", { body: text});
+            if (data['target'].indexOf(document.getElementById("my-id").innerText) != -1) {
+                var text = "[" + data.category + "] selcall from " + data.source[0];
+                var notification = new Notification("Selcall", { body: text });
             }
-            
+
+        }
+
+        function log_page(data) {
+            var alert_log = document.createElement("div")
+            var alert_info = document.createElement("p")
+            var alert_page = document.createElement("p")
+            alert_log.classList.add("alert")
+            if (data.category == "SAFETY") {
+                alert_log.classList.add("alert-warning")
+            } else if (data.category == "URGENT") {
+                alert_log.classList.add("alert-warning")
+            } else if (data.category == "DISTRESS") {
+                alert_log.classList.add("alert-danger")
+            } else {
+                alert_log.classList.add("alert-info")
+            }
+
+            alert_log.role = "alert"
+            alert_info.innerText = new Date().toISOString() + " [" + data.category + "] " + " Page from " + data.source[0] + " to " + data.target[0] + " [" + data.snr.toFixed(2) + "db]"
+            alert_page.innerText = data.page
+            alert_log.appendChild(alert_info)
+            alert_log.appendChild(alert_page)
+            document.getElementById("rx_log").prepend(alert_log)
+
+            if (data['target'].indexOf(document.getElementById("my-id").innerText) != -1) {
+                var notification = new Notification(data.category + " Page from " + data.source[0], { body:  data.page });
+            }
+
         }
 
         function log_preamble(data) {
@@ -100,11 +186,11 @@
             alert_log.classList.add("alert")
             alert_log.classList.add("alert-light")
             alert_log.role = "alert"
-            alert_log.innerText = new Date().toISOString() + " Preamble detected" + " [" + data.snr.toFixed(2) +  "db]"
+            alert_log.innerText = new Date().toISOString() + " Preamble detected" + " [" + data.snr.toFixed(2) + "db]"
             document.getElementById("rx_log").prepend(alert_log)
         }
-        
-        function info(data){
+
+        function info(data) {
             document.getElementById("my-id").innerText = data.id
         }
 
@@ -115,7 +201,7 @@
         socket.on("info", info)
 
         socket.on("connect", () => {
-            socket.emit("info",{})
+            socket.emit("info", {})
             document.getElementById("status").innerText = "Connected"
             document.getElementById("status").className = "badge rounded-pill bg-success"
         });
@@ -141,14 +227,23 @@
 
         function tx_form() {
             var target = { "id": document.getElementById("target").value, "category": document.getElementById("category").value }
-            socket.emit("selcall", target)
+            if (document.getElementById("chanTest").checked) {
+                socket.emit("chantest", target)
+            } else {
+                socket.emit("selcall", target)
+            }
+        }
+
+        function tx_page_form() {
+            var target = { "id": document.getElementById("target_page").value, "category": document.getElementById("category_page").value, "page": document.getElementById("page_message").value }
+            socket.emit("page", target)
         }
 
 
         Notification.requestPermission().then((result) => {
             console.log(result);
         });
-        
+
     </script>
 </body>
 
