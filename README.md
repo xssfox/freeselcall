@@ -15,6 +15,7 @@ Codan 4 digit Selcall encoder and decoder
 
 ## Features
  - Codan HF Selcall (4 digits)
+ - Codan Page calls - sending and receiving - with magic bytes
  - Basic web interface
  - CLI interface
  - Websockets for application integration

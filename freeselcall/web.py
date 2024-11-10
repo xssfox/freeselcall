@@ -29,6 +29,11 @@ class Server():
             logging.debug(f"Send websocket alert {data}")
             emit("selcall",data,json=True, broadcast=True, namespace="/freeselcall")
             logging.debug(f"Sent websocket")
+    def send_log(self, data):
+        with app.app_context():
+            logging.debug(f"Send websocket alert {data}")
+            emit("sending",data,json=True, broadcast=True, namespace="/freeselcall")
+            logging.debug(f"Sent websocket")
     def preamble(self, data):
         with app.app_context():
             logging.debug(f"Send websocket preable {data}")
@@ -101,7 +106,7 @@ def ws_page(args):
         emit("error", {"message": "Incorrect selcall id"})
         return
     tx(id, CallCategories[args['category'] if 'category' in args else 'RTN'], True, page=args['page'])
-    logging.info(f"websocket chantest {id}")
+    logging.info(f"websocket page {id}")
 
 @socketio.on("info", namespace="/freeselcall")
 def ws_info(args):

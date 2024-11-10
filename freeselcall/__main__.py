@@ -109,6 +109,16 @@ def main():
         def tx(arg, category, chan_test=False, page=None):
             "Performs a selcall - example: selcall 1234"
             mod_out = modem_tx.sel_call_modulate(options.id,int(arg), category, chan_test, page=page)
+            if not options.no_web:
+                        web.send_log(
+                            {
+                                "source":options.id,
+                                "target":int(arg),
+                                "category": category.name,
+                                "chan_test": chan_test,
+                                "page": page
+                            }
+                        )
             output_device.write(mod_out)
 
 
@@ -132,7 +142,7 @@ def main():
                 if data['message'] == "Preamble":
                     if not options.no_web:
                         web.preamble(data)
-                if not options.no_chan_test and data['message'] == 'ChanTest' and f"{options.id:04}" in data['target']:
+                if not options.no_chan_test and "chantest" in data and data['chantest'] == True and f"{options.id:04}" in data['target']:
                     logging.info("Sending back chan test.")
                     output_device.write_raw(chan_test_tune.samples)
                 if data['message'] == "Page":

@@ -5,12 +5,14 @@ import logging
 from dataclasses import dataclass
 import enum
 
+from .pagecall_magic import get_magic
+
 FDMDV_SCALE = 825
 
-
+MAX_PAGE_LENGTH = 64
 PHASING_PATTERN_THRESHOLD = 0.85
 MAX_RX_BUFFER_SIZE_BITS = 10*(12+18)
-MAX_RX_BUFFER_SIZE_BITS_PAGE = 10*(12+ 28 + (64* 2)) # (phasing(12) + paging header/footer + 64*2 words for page mssage) * 10 bits
+MAX_RX_BUFFER_SIZE_BITS_PAGE = 10*(12+ 28 + (MAX_PAGE_LENGTH* 2)) # (phasing(12) + paging header/footer + 64*2 words for page mssage) * 10 bits
 
 ASCII_OFFSET = 27 # used for pages
 
@@ -30,22 +32,22 @@ def selcall_get_word(value) -> list:
 
 
 
-SEL_SEL = 120     # Selective call
-SEL_ID  = 123     # Individual station semi-automatic/automatic service (Codan channel test)
-SEL_EOS = 127     # ROS
-SEL_MSG = 102
+SEL_SEL = 0x78     # Selective call
+SEL_ID  = 0x7b     # Individual station semi-automatic/automatic service (Codan channel test)
+SEL_EOS = 0x7f     # ROS
+SEL_MSG = 0x66
 
 
-SEL_ARQ = 117     # Acknowledge Request (EOS)
-SEL_PDX = 125     # Phasing DX Position
-SEL_PH7 = 111     # Phasing RX-7 position
-SEL_PH6 = 110     # RX-6
-SEL_PH5 = 109     # RX-5
-SEL_PH4 = 108     # RX-4
-SEL_PH3 = 107     # RX-3
-SEL_PH2 = 106     # RX-2
-SEL_PH1 = 105     # RX-1
-SEL_PH0 = 104     # Phasing RX-0 Position
+SEL_ARQ = 0x75     # Acknowledge Request (EOS)
+SEL_PDX = 0x7d     # Phasing DX Position
+SEL_PH7 = 0x6f     # Phasing RX-7 position
+SEL_PH6 = 0x6e     # RX-6
+SEL_PH5 = 0x6d     # RX-5
+SEL_PH4 = 0x6c     # RX-4
+SEL_PH3 = 0x6b     # RX-3
+SEL_PH2 = 0x6a     # RX-2
+SEL_PH1 = 0x69     # RX-1
+SEL_PH0 = 0x68     # Phasing RX-0 Position
 
 PHASING_PATTERN = [SEL_PDX, SEL_PH5, SEL_PDX, SEL_PH4, SEL_PDX, SEL_PH3, SEL_PDX, SEL_PH2, SEL_PDX, SEL_PH1, SEL_PDX, SEL_PH0]
 PHASING_PATTERN_BINARY = [symbol for word in PHASING_PATTERN for symbol in selcall_get_word(word)]
@@ -53,11 +55,11 @@ PHASING_PATTERN_BINARY = [symbol for word in PHASING_PATTERN for symbol in selca
 SUPPORTED_FORMATS = [SEL_SEL, SEL_ID]
 
 class CallCategories(enum.Enum):
-    RTN = 100
-    BIZ = 106
-    SAFETY = 108
-    URGENT = 110
-    DISTRESS =112
+    RTN = 0x64
+    BIZ = 0x6a
+    SAFETY = 0x6c
+    URGENT = 0x6e
+    DISTRESS = 0x70
 
 
 class Modem():
@@ -181,16 +183,21 @@ class Modem():
                     self.found_header = True
                     early_exit = True
                     if self.is_page(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):]):
-                        early_exit = False
-                        logging.debug("Is likely a page - wait for more data")
+                        if not self.is_end_of_page(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):]):
+                            early_exit = False
+                            logging.debug("Is likely a page - wait for more data")
+                        else:
+                            logging.info("found end of page")
+                        
+                                          
                     if ((x + MAX_RX_BUFFER_SIZE_BITS + len(PHASING_PATTERN_BINARY) <= len(self.rx_demodulated_buffer)) and early_exit) or \
                         (x < self.bytes_per_frame):
                         logging.debug(len(self.rx_demodulated_buffer))
                         logging.info(f"Should have the rest of the packet by now {x}")
                         packet_length = MAX_RX_BUFFER_SIZE_BITS if early_exit else MAX_RX_BUFFER_SIZE_BITS_PAGE
                         logging.debug(packet_length)
-                        logging.debug(len(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):x+packet_length+len(PHASING_PATTERN_BINARY)]))
-                        self.process(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):x+packet_length+len(PHASING_PATTERN_BINARY)])
+                        logging.debug(len(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):])) #x+packet_length+len(PHASING_PATTERN_BINARY)
+                        self.process(self.rx_demodulated_buffer[x+(len(PHASING_PATTERN_BINARY)):]) # x+packet_length+len(PHASING_PATTERN_BINARY)
                         del self.rx_demodulated_buffer[:] # wipe the buffer so we don't decode twice
                         self.header_snr = None # reset SNR
                         return
@@ -215,6 +222,27 @@ class Modem():
         if len(words) >= 18:
             if (words[12] == SEL_MSG) or (words[17] == SEL_MSG):
                 return True
+        return False
+    def is_end_of_page(self, data):
+        words = []
+        
+        for index in range(0,len(data)-10,10):
+            d = 0
+            for i in range(0,7):
+                d += data[index+i] * 128
+                d = d >> 1
+            words.append(d)
+        logging.debug(words)
+        
+        if len(words) >= 18:
+            for x in range(0,10): # look back a few words
+                if (
+                    ( words[-7-x] == SEL_ARQ ) +
+                    ( words[-6-x] == SEL_ARQ ) + 
+                    ( words[-4-x] == SEL_ARQ ) + 
+                    ( words[-2-x] == SEL_ARQ ) + 
+                    ( words[-1-x] == SEL_ARQ ) ) > 4:
+                    return True
         return False
          
     def process(self, data):
@@ -244,7 +272,7 @@ class Modem():
                 parity_valid.append(True)
             words.append(d)
         logging.debug("Words: ")
-        logging.debug(words)
+        logging.debug([f'{x:#02x}' for x in words])
         
         if (
             (words[0] in SUPPORTED_FORMATS) + \
@@ -364,6 +392,7 @@ class Modem():
                             "source": [f"{x:04}" for x in sources],
                             "target": [f"{x:04}" for x in targets],
                             "message": "Page",
+                            "chantest": chan_test,
                             "page": page,
                             "words": words,
                             "snr": self.header_snr,
@@ -378,6 +407,7 @@ class Modem():
                         "source": [f"{x:04}" for x in sources],
                         "target": [f"{x:04}" for x in targets],
                         "message": "ChanTest" if chan_test else "SelCall",
+                        "chantest": chan_test,
                         "words": words,
                         "snr": self.header_snr,
                         "category": category
@@ -405,34 +435,38 @@ class Modem():
         addr_B1 = (target//100)%100
         addr_B2 = target%100
 
+        ID_TYPE = SEL_ID if channel_test else SEL_SEL
+
         if page:
+            page = page[:64]
             callmsg = [None] * (28 + (len(page)* 2))
-                       # 0        1      2          3       4      5         6                7      8        9       10          11             12      13       14              15       16               17             18              19
-            callmsg[0:20] = [SEL_ID, SEL_ID, addr_B1, SEL_ID, addr_B2, SEL_ID, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_MSG, addr_A1, category.value, addr_A2,  None,         SEL_MSG,          None,      category.value   ]
+                               # 0        1      2          3       4      5         6                7      8        9       10          11             12      13       14              15       16               17             18              19
+            callmsg[0:20] = [ID_TYPE, ID_TYPE, addr_B1, ID_TYPE, addr_B2, ID_TYPE, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_MSG, addr_A1, category.value, addr_A2,  None,         SEL_MSG,          None,      category.value   ]
             
             # add the message data
             for x in range(0, len(page)):
                 callmsg[(x*2)+16] = ord(page[x])-ASCII_OFFSET
                 callmsg[(x*2)+21] = ord(page[x])-ASCII_OFFSET
             
+            magic_bytes = get_magic(target, source, category.value, ID_TYPE)
+
             callmsg[16 + len(page)*2 ]    = SEL_ARQ
-            callmsg[16 + len(page)*2 +2]  = 65 # not sure what these are
-            callmsg[16 + len(page)*2 +4]  = 23 # not sure what these are
+            callmsg[16 + len(page)*2 +2]  = magic_bytes[0]
+            callmsg[16 + len(page)*2 +4]  = magic_bytes[1] 
             callmsg[16 + len(page)*2 +5]  = SEL_ARQ
-            callmsg[16 + len(page)*2 +7]  = 65 # not sure what these are
+            callmsg[16 + len(page)*2 +7]  = magic_bytes[0]
             callmsg[16 + len(page)*2 +6]  = SEL_ARQ
             callmsg[16 + len(page)*2 +8]  = SEL_ARQ
-            callmsg[16 + len(page)*2 +9]  = 23 # not sure what these are
+            callmsg[16 + len(page)*2 +9]  = magic_bytes[1] 
             callmsg[16 + len(page)*2 +10] = SEL_ARQ
             callmsg[16 + len(page)*2 +11] = SEL_ARQ
-            logging.debug(callmsg)
 
-        elif channel_test:
-            callmsg = [SEL_ID, SEL_ID, addr_B1, SEL_ID, addr_B2, SEL_ID, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
         else:
-            callmsg = [SEL_SEL, SEL_SEL, addr_B1, SEL_SEL, addr_B2, SEL_SEL, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
-
+            callmsg = [ID_TYPE, ID_TYPE, addr_B1, ID_TYPE, addr_B2, ID_TYPE, category.value, addr_B1, addr_A1, addr_B2, addr_A2, category.value, SEL_ARQ, addr_A1, SEL_ARQ, addr_A2, SEL_ARQ, SEL_ARQ]
+       
         callmsg_bits = [symbol for word in callmsg for symbol in selcall_get_word(word)]
+
+        logging.debug(f"output words: {callmsg}")
 
         #logging.debug(callmsg_bits)
         packet += (callmsg_bits)

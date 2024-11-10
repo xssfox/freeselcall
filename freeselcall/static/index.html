@@ -17,10 +17,15 @@
     <!-- Begin page content -->
     <main role="main" class="container gap-4 d-grid ">
         <div class="row">
-            <h1 class="mt-5">Freeselcall <span class="badge rounded-pill bg-secondary" id="status">Disconnected</span>
+            <h1 class="mt-5">Freeselcall 
             </h1>
             <p>Selcall decoder test interface</p>
-            <p><b>My ID: </b><span id="my-id"></span></p>
+            
+            <p><span class="badge rounded-pill bg-secondary" id="status">Disconnected</span></p>
+            <p>
+                
+                <b>My ID: </b><span id="my-id"></span>
+            </p>
         </div>
 
         <div class="row">
@@ -28,7 +33,7 @@
             <form action="javascript:tx_form()">
                 <div class="row">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-2">
                             <div class="form-group">
                                 <!-- <label for="target">Target:</label> -->
                                 <input class="form-control" id="target" aria-describedby="targetHelp"
@@ -66,7 +71,7 @@
 
         <div class="row">
             <h2>Page</h2>
-            <div class="row ">
+            <div class="row g-3">
                 <form action="javascript:tx_page_form()">
                     <div class="row ">
                         <div class="col-md-6">
@@ -78,20 +83,7 @@
                                     ID.</small>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <!-- <label for="target">Call Category:</label> -->
-                                <select class="form-select" aria-label="Category" id="category_page">
-                                    <option selected value="RTN">Routine</option>
-                                    <option value="BIZ">Business</option>
-                                    <option value="SAFETY">Safety</option>
-                                    <option value="URGENT">Urgent</option>
-                                    <option value="DISTRESS">Distress</option>
-                                </select>
-                            </div>
-                        </div>
                         <div class="col-md-2"><button type="submit" class="btn btn-primary">Page</button></div>
-
                     </div>
                     <div class="row">
                         <div class="col-md-12">
@@ -106,7 +98,7 @@
                 </form>
             </div>
         </div>
-        <div class="row">
+        <div class="row g-3">
             <h2>RX Log</h2>
             <p>This log only shows received Selcalls while the page has been open and active</p>
             <div id="rx_log">
@@ -176,9 +168,28 @@
             document.getElementById("rx_log").prepend(alert_log)
 
             if (data['target'].indexOf(document.getElementById("my-id").innerText) != -1) {
-                var notification = new Notification(data.category + " Page from " + data.source[0], { body:  data.page });
+                var notification = new Notification(data.category + " Page from " + data.source[0], { body: data.page });
             }
 
+        }
+
+        function log_send(data) {
+            var alert_log = document.createElement("div")
+            var alert_page = document.createElement("p")
+            var alert_info = document.createElement("p")
+            
+            alert_log.classList.add("alert")
+            alert_log.classList.add("alert-info")
+            alert_log.role = "alert"
+            alert_info.innerText = new Date().toISOString() + " [" + data.category + "] " + " Sending from " + data.source + " to " + data.target
+            if (data.page){
+                alert_page.innerText = data.page
+            }
+
+            alert_log.appendChild(alert_info)
+            alert_log.appendChild(alert_page)
+
+            document.getElementById("rx_log").prepend(alert_log)
         }
 
         function log_preamble(data) {
@@ -197,6 +208,7 @@
         socket.on('error', console.error.bind(console));
         socket.on('selcall', log_selcall);
         socket.on('preamble', log_preamble);
+        socket.on('sending', log_send);
 
         socket.on("info", info)
 
@@ -235,7 +247,7 @@
         }
 
         function tx_page_form() {
-            var target = { "id": document.getElementById("target_page").value, "category": document.getElementById("category_page").value, "page": document.getElementById("page_message").value }
+            var target = { "id": document.getElementById("target_page").value, "page": document.getElementById("page_message").value }
             socket.emit("page", target)
         }
 
